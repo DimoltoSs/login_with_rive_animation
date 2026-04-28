@@ -33,6 +33,58 @@ class _LoginScreenState extends State<LoginScreen> {
   //3.2Timer para detener la mirada al dejar de escribir
   Timer? _typingDebounce;
 
+  //4.1 Controllers para manipular los campos de texto
+  final emailCrtl = TextEditingController();
+  final passwordCrtl = TextEditingController();
+
+  // 4.2 Errores para mostrar en UI
+  String? emailError;
+  String? passwordError;
+
+    // 4.3 Validadores
+  bool isValidEmail(String email) {
+    final re = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
+    return re.hasMatch(email);
+  }
+
+  bool isValidPassword(String pass) {
+    // mínimo 8, una mayúscula, una minúscula, un dígito y un especial
+    final re = RegExp(
+      r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$',
+    );
+    return re.hasMatch(pass);
+  }
+
+  // 4.4 Acción al boton
+  void _onLogin() {
+    // De lo que escribió el uuario, quita espacios al inicio y al final
+    final email = emailCrtl.text.trim();
+    final password = passwordCrtl.text.trim();
+
+    // 4.5 Notificar cambios en UI
+    final emailUIError = isValidEmail(email) ? null : 'Email inválido';
+    final passwordUIError = isValidPassword(password) ? null : 'Contraseña débil';
+
+    setState(() {
+      emailError = emailUIError;
+      passwordError = passwordUIError;
+     
+    });
+    // 4.6 Cerrar el teclado y bajar manos
+    FocusScope.of(context).unfocus();
+    _typingDebounce?.cancel();
+    _isChecking?.change(false); 
+    _isHandsUp?.change(false);
+    _numLook?.value = 50; // mirada neutra
+
+    // 4.7 Activar triggers de éxito o error
+    if (emailUIError == null && passwordUIError == null) {
+      _trigSuccess?.fire();
+    } else {
+      _trigFail?.fire();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -53,18 +105,18 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final Size = MediaQuery.of(context).size;
+    final Size size = MediaQuery.of(context).size;
 
     return Scaffold(
       //evita nudge o camaras frontales
-      body: SafeArea(
+      body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 100.0),
           child: Column(
             children: [
               SizedBox(
-                width: Size.width,
-                height: Size.height * 0.4,
+                width: size.width,
+                height: size.height * 0.4,
                 child: RiveAnimation.asset(
                   'animated_login_character.riv',
                   stateMachines: ["Login Machine"],
@@ -92,6 +144,8 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 10),
               //Email
               TextField(
+                // 4.8 asignar controladores a los campos de texto
+                controller: emailCrtl,
                 //1.3 Vincular focus al campo de texto
                 focusNode: _emailFocusNode,
 
@@ -126,6 +180,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 keyboardType: TextInputType.emailAddress,
                 decoration: InputDecoration(
+                  // 4.9 mostrar errores de validación en el campo de texto
+                  errorText: emailError,
                   prefixIcon: const Icon(Icons.email),
                   hintText: 'Email',
                   border: OutlineInputBorder(
@@ -136,7 +192,10 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 10),
               //Password
               TextField(
+                // 4.8 asignar controladores a los campos de texto
+                controller: passwordCrtl,
                 focusNode: _passwordFocusNode,
+                
                 onChanged: (value) {
                   if (_isChecking != null) {
                     //_isChecking!.change(false);
@@ -146,6 +205,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 },
                 obscureText: _obscureText,
                 decoration: InputDecoration(
+                  // 4.9 mostrar errores de validación en el campo de texto
+                  errorText: passwordError,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -165,6 +226,46 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
 
               SizedBox(height: 10),
+              // Texto de olvido de contraseña
+              SizedBox(
+                width: size.width,
+                child: const Text(
+                  'Forgot password?',
+                  // Alinear el texto a la derecha
+                  textAlign: TextAlign.right,
+                  style: TextStyle(decoration: TextDecoration.underline),
+                ),
+              ),
+
+              SizedBox(height: 10),
+              MaterialButton(
+                minWidth: size.width,
+                height: 50,
+                color: Colors.blueAccent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                onPressed: _onLogin,
+                child: const Text('Login', style: TextStyle(color: Colors.white)),
+              ),
+                SizedBox(
+                  width: size.width,
+                  child: Row(
+                    children: [
+                      const Text('Don\'t have an account?'),
+                      TextButton(
+                        onPressed: () {
+                          // Acción para registrarse
+                        },
+                        child: const Text('Sign Up', 
+                        style: TextStyle(color: Colors.black, 
+                        decoration: TextDecoration.underline,
+                        fontWeight: FontWeight.bold,
+                        ),),
+                      ),
+                    ],
+                  ),
+                )
             ],
           ),
         ),
@@ -175,6 +276,8 @@ class _LoginScreenState extends State<LoginScreen> {
   //1.4 liberar memorea de los focus node
   @override
   void dispose() {
+    emailCrtl.dispose();
+    passwordCrtl.dispose();
     _emailFocusNode.dispose();
     _passwordFocusNode.dispose();
     //3.4 cancelar el timer al cerrar la pantalla
